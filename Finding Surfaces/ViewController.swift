@@ -24,10 +24,12 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         sceneView.showsStatistics = true
         
         // Create a new scene
-        let scene = SCNScene(named: "art.scnassets/ship.scn")!
+        let scene = SCNScene()
         
         // Set the scene to the view
         sceneView.scene = scene
+        
+        sceneView.debugOptions = [ARSCNDebugOptions.showWorldOrigin, ARSCNDebugOptions.showFeaturePoints]
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -35,6 +37,8 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         
         // Create a session configuration
         let configuration = ARWorldTrackingConfiguration()
+        
+        configuration.planeDetection = [.horizontal]
 
         // Run the view's session
         sceneView.session.run(configuration)
@@ -45,6 +49,38 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         
         // Pause the view's session
         sceneView.session.pause()
+    }
+    
+    func createFloor(planeAnchor: ARPlaneAnchor) -> SCNNode {
+        
+        let width = CGFloat(planeAnchor.extent.x)
+        let height = CGFloat(planeAnchor.extent.z)
+        
+        let geometry = SCNPlane(width: width, height: height)
+        geometry.firstMaterial?.diffuse.contents = UIImage(named: "grass-lawn-green-carpet-24994")
+        
+        let node = SCNNode()
+        node.geometry = geometry
+        
+        node.eulerAngles.x = -Float.pi / 2
+        node.opacity = 1
+        
+        
+        
+        return node
+    }
+    
+    func createCube() -> SCNNode {
+        
+        let cube = SCNBox(width: 0.3, height: 0.3, length: 0.3, chamferRadius: 0)
+        cube.firstMaterial?.diffuse.contents = UIImage(named: "BrickRound0105_5_S")
+        
+        let obj = SCNNode()
+        obj.geometry = cube
+        obj.position = SCNVector3(x: 0, y: 0.2, z: 0)
+        obj.opacity = 1
+        
+        return obj
     }
     
     override func didReceiveMemoryWarning() {
@@ -62,6 +98,27 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         return node
     }
 */
+    
+    func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
+        guard let planeAnchor = anchor as? ARPlaneAnchor else { return }
+        
+        let floor = createFloor(planeAnchor: planeAnchor)
+        let obj = createCube()
+        node.addChildNode(floor)
+        node.addChildNode(obj)
+    }
+    
+    func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
+        guard let planeAnchor = anchor as? ARPlaneAnchor,
+            let floor = node.childNodes.first,
+            let geometry = floor.geometry as? SCNPlane else { return }
+        
+        geometry.width = CGFloat(planeAnchor.extent.x)
+        geometry.height = CGFloat(planeAnchor.extent.z)
+        
+        floor.position = SCNVector3(planeAnchor.center.x, 0, planeAnchor.center.z)
+        
+    }
     
     func session(_ session: ARSession, didFailWithError error: Error) {
         // Present an error message to the user
